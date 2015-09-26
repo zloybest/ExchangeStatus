@@ -36,9 +36,18 @@ var observedTabs = {
     //tabID:buildID
 };
 
-function addBuild(buildID, tabID){
+var statusChangedTabs = [];
 
-    chrome.pageAction.show(tabID);
+var activeTabId = -1;
+
+function addBuild(buildID, tabID, title){
+
+    if(title === null) return;
+
+    chrome.browserAction.setIcon({
+        path:'img/alert-icon.png',
+        tabId:tabID
+    });
 
     if(!statusList.hasOwnProperty(buildID)){
         console.log("Add build "+buildID+" to list");
@@ -49,7 +58,8 @@ function addBuild(buildID, tabID){
             priority:"[unknown]",
             status:"[unknown]",
             user:"[unknown]",
-            tabID:[tabID]
+            tabID:[tabID],
+            title:title
         };
         observedTabs[tabID] = buildID;
     } else {//уже есть такой билд, но, возможно, для другой вкладки, проверим, и если да, то добаввим вкладку в observedTabs
@@ -57,6 +67,29 @@ function addBuild(buildID, tabID){
             statusList[buildID].tabID.push(tabID);
             observedTabs[tabID] = buildID;
         }
+    }
+}
+
+function removeBuild(buildID, tabID){
+    console.log("Remove build "+buildID+" from tab "+tabID);
+
+    chrome.browserAction.setIcon({
+        path:'img/alert-icon-gray.png'
+    });
+
+    if(statusList.hasOwnProperty(buildID)){
+        delete observedTabs[tabID];
+
+        if(statusList[buildID].tabID.length == 1){
+            delete statusList[buildID];
+        } else {
+            for(var i = 0; i < statusList[buildID].tabID.length; i++){
+                if(statusList[buildID].tabID[i] == tabID){
+                    statusList[buildID].tabID.splice(i, 1);
+                }
+            }
+        }
+
     }
 }
 
@@ -80,30 +113,21 @@ function changeBuildStatus(buildID, status){
     console.log("Build "+buildID+" change status from "+statusList[buildID].id +"("+statusList[buildID].status+")"+" to "+status.id+" ("+status.status+")");
     if(statusList[buildID].id !== -1) {//no status
         notification(buildID, status);
-    }
-    status.tabID = statusList[buildID].tabID;
-    statusList[buildID] = status;
-
-}
-
-function removeBuild(buildID, tabID){
-    console.log("Remove build "+buildID+" from tab "+tabID);
-    chrome.pageAction.hide(tabID);
-    if(statusList.hasOwnProperty(buildID)){
-        delete observedTabs[tabID];
-
-        if(statusList[buildID].tabID.length == 1){
-            delete statusList[buildID];
-        } else {
-            for(var i = 0; i < statusList[buildID].tabID.length; i++){
-                if(statusList[buildID].tabID[i] == tabID){
-                    statusList[buildID].tabID.splice(i, 1);
-                }
+        for(var i = 0; i < statusList[buildID].tabID.length; i++){
+            if(statusChangedTabs.indexOf(statusList[buildID].tabID[i]) == -1 && activeTabId != statusList[buildID].tabID[i]){
+                statusChangedTabs.push(statusList[buildID].tabID[i]);
+                updateBrowserActionBadge();
             }
         }
-
     }
+    status.tabID = statusList[buildID].tabID;
+    status.title = statusList[buildID].title;
+    statusList[buildID] = status;
+
+
+
 }
+
 
 function notification(buildID, status){
     var opt = {
@@ -118,7 +142,7 @@ function notification(buildID, status){
                 title:"User:", message:status.user
             }
         ],
-        iconUrl: "icon.png"
+        iconUrl: "img/alert-icon.png"
     };
 
     chrome.notifications.create('statusChanged'+buildID+'-'+status, opt);
@@ -130,6 +154,18 @@ function notification(buildID, status){
         } else {
             chrome.notifications.create('statusChanged', opt);
         }
+    });
+}
+
+function updateBrowserActionBadge(){
+    var count = statusChangedTabs.length;
+    if(count > 0){
+        chrome.browserAction.setBadgeBackgroundColor({color:'#F00'});
+    } else {
+        chrome.browserAction.setBadgeBackgroundColor({color:'#000'});
+    }
+    chrome.browserAction.setBadgeText({
+        text:count.toString()
     });
 }
 
@@ -146,6 +182,7 @@ start();
 
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
 
+
     if(observedTabs.hasOwnProperty(tabId) && tab.url){
         if(!tab.url.match(/https?:\/\/dev.exchange.academmedia.com\/builds\/[0-9]+/i)){
             var buildID = observedTabs[tabId];
@@ -159,7 +196,15 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab){
         var buildID = tab.url.match(/[0-9]+/i);
         buildID = parseInt(buildID[0]);
         if(buildID>0){
-            addBuild(buildID, tabId);
+            var title = tab.title.match(/«[^]+»/i);
+            if(title && title.length){
+                title = title[0];
+                title = title.substring(1,title.length-1);
+            } else {
+                title = null;
+            }
+
+            addBuild(buildID, tabId, title);
         }
     }
 
@@ -180,3 +225,13 @@ chrome.tabs.onRemoved.addListener(function(tabID){
         removeBuild(observedTabs[tabID], tabID);
     }
 });
+
+chrome.tabs.onActivated.addListener(function(o){
+    activeTabId = o.tabId;
+    //o.tabId, o.windowId
+    var index = statusChangedTabs.indexOf(o.tabId);
+    if(index > -1){
+        statusChangedTabs.splice(index, 1);
+        updateBrowserActionBadge();
+    }
+})
