@@ -1,0 +1,8 @@
+.disable-notification {
+    width:125px;
+    position: relative;
+}
+
+.disable-notification input[type="checkbox"] {
+    position: absolute;
+}

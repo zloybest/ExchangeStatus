@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/background.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/icon.png" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/manifest.json" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/manifest.json" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/page-action.html" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/popup.html" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/popup.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/popup.js" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/send_links.js" charset="UTF-8" />
+  </component>
+</project>
